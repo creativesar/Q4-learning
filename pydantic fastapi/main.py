@@ -20,51 +20,59 @@ class ChatResponse(BaseModel):
 # Store conversation history
 conversation_history: Dict[uuid.UUID, List[dict]] = {}
 
-# Enhanced responses based on categories
+# Simplified and organized responses
 responses = {
-    "greeting": [
-        "Hello! How can I help you today?",
-        "Hi there! Nice to meet you!",
-        "Greetings! How may I assist you?",
-    ],
-    "farewell": [
-        "Goodbye! Have a great day!",
-        "See you later! Take care!",
-        "Farewell! Hope to chat again soon!",
-    ],
-    "general": [
-        "That's interesting! Tell me more.",
-        "I understand. Please continue.",
-        "Thanks for sharing that with me!",
-    ]
+    "greeting": {
+        "triggers": ["hello", "hi", "hey", "morning", "afternoon", "evening"],
+        "responses": [
+            "Hello! How can I help you?",
+            "Hi there! What's on your mind?",
+            "Hey! Ready to chat!"
+        ]
+    },
+    "farewell": {
+        "triggers": ["bye", "goodbye", "see you", "later"],
+        "responses": [
+            "Goodbye! Take care!",
+            "See you later!",
+            "Have a great day!"
+        ]
+    },
+    "mood": {
+        "triggers": ["how are you", "how's it going", "what's up"],
+        "responses": [
+            "I'm doing great! How about you?",
+            "All good here! How are you today?",
+            "I'm wonderful! How's your day going?"
+        ]
+    }
 }
+
+def get_response_type(message: str) -> str:
+    message = message.lower()
+    for response_type, content in responses.items():
+        if any(trigger in message for trigger in content["triggers"]):
+            return response_type
+    return "general"
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(message: Message):
-    # Initialize conversation history for new users
     if message.id not in conversation_history:
         conversation_history[message.id] = []
     
-    # Store user message
     conversation_history[message.id].append({
         "role": "user",
         "message": message.user_message,
         "timestamp": message.timestamp
     })
 
-    # Enhanced response logic
-    msg_lower = message.user_message.lower()
-    
-    if any(word in msg_lower for word in ["hello", "hi", "hey"]):
-        response = random.choice(responses["greeting"])
-    elif any(word in msg_lower for word in ["bye", "goodbye", "see you"]):
-        response = random.choice(responses["farewell"])
-    elif "how are you" in msg_lower:
-        response = "I'm doing great! Thanks for asking. How about you?"
+    # Get appropriate response
+    response_type = get_response_type(message.user_message)
+    if response_type in responses:
+        response = random.choice(responses[response_type]["responses"])
     else:
-        response = random.choice(responses["general"])
+        response = "I understand. Tell me more!"
     
-    # Store bot response
     conversation_history[message.id].append({
         "role": "bot",
         "message": response,
